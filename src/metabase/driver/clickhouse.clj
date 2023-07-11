@@ -362,6 +362,9 @@
   [_ field p]
   (str "quantile(" (hformat/to-sql p) ")(" (hformat/to-sql field) ")"))
 
+(defmethod hformat/fn-handler "sumIf" [_ field pred]
+  (str "sumIf(" (hformat/to-sql field) ", " (hformat/format-predicate* pred) ")"))
+
 (defmethod sql.qp/->honeysql [:clickhouse :percentile]
   [driver [_ field p]]
   (hsql/call :quantile
@@ -442,16 +445,16 @@
 (defmethod sql.qp/->honeysql [:clickhouse :count-where]
   [driver [_ pred]]
   (hsql/call :case (hsql/call :> (hsql/call :count) 0)
-             (hsql/call :sum
-                        (hsql/call :case (sql.qp/->honeysql driver pred) 1
-                                   :else 0))
+             (hsql/call :countIf (apply hsql/call (sql.qp/->honeysql driver pred)))
              :else nil))
 
 (defmethod sql.qp/->honeysql [:clickhouse :sum-where]
   [driver [_ field pred]]
-  (hsql/call :sum (hsql/call
-                   :case (sql.qp/->honeysql driver pred) (sql.qp/->honeysql driver field)
-                   :else 0)))
+  ;[:sumIf (sql.qp/->honeysql driver field) (sql.qp/->honeysql driver pred)])
+  (hsql/call :sumIf
+           (sql.qp/->honeysql driver field)
+             (sql.qp/->honeysql driver pred)))
+
 
 (defmethod sql.qp/quote-style :clickhouse [_] :mysql)
 
